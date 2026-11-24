@@ -18,44 +18,103 @@ Rede social de filmes feita para a disciplina de Haskell da Fatec.
 
 ## Como rodar
 
-### 1. Instalar o Haskell
+### O que instalar
 
-Instale o [GHCup](https://www.haskell.org/ghcup/), que traz o GHC e o Cabal.
+| Programa | Para quê |
+|---|---|
+| [Git](https://git-scm.com/downloads) | Baixar o projeto |
+| [VS Code](https://code.visualstudio.com) | Editor recomendado; o terminal dele já vem configurado para o projeto |
+| [GHCup](https://www.haskell.org/ghcup/) | Instala o GHC (compilador Haskell) e o Cabal (gerenciador de pacotes) |
+| `libpq` | Biblioteca do PostgreSQL usada pelo `postgresql-simple` (passo 3) |
 
-### 2. Instalar a biblioteca do PostgreSQL (só no Windows)
+Versões testadas: **GHC 9.10.3** e **Cabal 3.16.1**.
 
-O `postgresql-simple` precisa da `libpq`. Instale pelo MSYS2 que vem com o GHCup:
+### 1. Baixar o projeto
 
 ```
-C:\ghcup\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-postgresql"
+git clone https://github.com/luizfr14/HaskellMovies.git
+cd HaskellMovies
 ```
 
-Ao rodar, a pasta `C:\ghcup\msys64\mingw64\bin` precisa estar no PATH. No VS Code isso já está configurado em `.vscode/settings.json`, só para o terminal deste projeto. Feche e abra o VS Code depois de clonar o repositório.
+### 2. Instalar o Haskell (GHCup)
 
-### 3. Configurar o `.env`
+**Windows:** siga as instruções do [site do GHCup](https://www.haskell.org/ghcup/). Ele roda um comando no PowerShell que instala tudo em `C:\ghcup`. **Mantenha essa pasta**, porque o `.vscode/settings.json` do projeto depende dela. Depois instale as versões testadas:
 
-Copie o `.env.example` para `.env` e preencha:
+```
+C:\ghcup\bin\ghcup.exe install ghc 9.10.3 --set
+C:\ghcup\bin\ghcup.exe install cabal 3.16.1.0 --set
+```
+
+**Linux / macOS:** use o comando do site do GHCup e depois `ghcup install ghc 9.10.3 --set` e `ghcup install cabal 3.16.1.0 --set`.
+
+### 3. Instalar a `libpq` (biblioteca do PostgreSQL)
+
+**Windows:** pelo MSYS2 que vem junto com o GHCup:
+
+```
+C:\ghcup\msys64\usr\bin\bash.exe -lc "pacman -Sy --noconfirm mingw-w64-x86_64-postgresql"
+```
+
+**Linux (Ubuntu/Debian):** `sudo apt install libpq-dev`
+
+**macOS:** `brew install libpq && brew link --force libpq`
+
+### 4. Abrir o terminal certo
+
+**No VS Code:** abra a pasta do projeto, **feche o VS Code por completo e abra de novo**, e use o terminal integrado (`` Ctrl+` ``). O `.vscode/settings.json` coloca o GHC, o Cabal e a `libpq` no PATH só desse terminal, sem mexer no resto do Windows.
+
+**Em outro terminal (PowerShell)**, rode isto antes, a cada terminal novo:
+
+```
+$env:PATH = "C:\ghcup\bin;C:\ghcup\msys64\mingw64\bin;$env:PATH"
+$env:CABAL_DIR = "C:\cabal"
+```
+
+Para conferir: `ghc --version` e `cabal --version` devem mostrar as versões.
+
+### 5. Configurar o `.env`
+
+Copie o arquivo de exemplo:
+
+```
+copy .env.example .env
+```
+
+Abra o `.env` e preencha, sem aspas e sem espaços em volta do `=`:
 
 | Variável | Onde conseguir |
 |---|---|
-| `DATABASE_URL` | Supabase → projeto → **Connect** → **Session pooler**. Troque `[YOUR-PASSWORD]` pela senha do banco. |
-| `TMDB_TOKEN` | themoviedb.org → Configurações → API → **API Read Access Token**, o token longo que começa com `eyJ`. |
+| `DATABASE_URL` | Supabase → projeto **haskellmovies** → botão **Connect** → **Session pooler**. Copie a URI e troque `[YOUR-PASSWORD]` pela senha do banco, sem os colchetes. Membros do grupo: peçam a senha no grupo. |
+| `TMDB_TOKEN` | Crie uma conta em themoviedb.org → Configurações → API → solicite uma chave (tipo **Education**) → copie o **API Read Access Token**, o token longo que começa com `eyJ`. |
 | `PORT` | Opcional; o padrão é 8080. |
 
-O `.env` está no `.gitignore` e nunca vai para o GitHub.
+O `.env` está no `.gitignore` e nunca vai para o GitHub. **Nunca compartilhe a senha ou o token em lugares públicos.**
 
-### 4. Criar as tabelas
+### 6. Criar as tabelas (só para um banco novo)
 
-Rode o conteúdo de [db/schema.sql](db/schema.sql) no **SQL Editor** do Supabase. Só é preciso na primeira vez.
+O banco do grupo **já tem as tabelas**; pule este passo. Se for usar um projeto novo do Supabase, rode o conteúdo de [db/schema.sql](db/schema.sql) no **SQL Editor** dele uma vez.
 
-### 5. Rodar
+### 7. Rodar
 
 ```
 cabal update
 cabal run
 ```
 
-Abra http://localhost:8080
+A **primeira vez demora** (de 10 a 20 minutos), porque o Cabal baixa e compila as bibliotecas. Nas próximas vezes leva segundos. Quando aparecer `HaskellMovies rodando em http://localhost:8080`, abra esse endereço no navegador.
+
+Para parar o servidor: `Ctrl+C` no terminal.
+
+### Problemas comuns
+
+| Mensagem | Solução |
+|---|---|
+| `cabal` não é reconhecido | Feche e abra o VS Code de novo, ou rode os comandos de PATH do passo 4. |
+| O programa fecha sem mensagem, ou com código `-1073741515` | A `libpq` não foi encontrada: confira os passos 3 e 4. |
+| `A variavel DATABASE_URL nao foi definida` (ou `TMDB_TOKEN`) | O `.env` não existe ou está vazio: veja o passo 5. |
+| Erro de conexão com o banco | Confira a senha na `DATABASE_URL` e se escolheu **Session pooler**; a conexão direta exige IPv6. |
+| Porta 8080 ocupada / `Permission denied` ao compilar | Já existe um servidor rodando: feche o outro terminal ou use `Ctrl+C` nele. |
+| Tela em branco no navegador | Recarregue com `Ctrl+Shift+R` para ignorar o cache. |
 
 ## Rotas da API
 
