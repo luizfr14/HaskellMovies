@@ -1,0 +1,9 @@
+{
+    // Só para o terminal do VS Code neste projeto (não altera o PATH do Windows):
+    // - C:\ghcup\bin                 -> ghc e cabal
+    // - C:\ghcup\msys64\mingw64\bin  -> libpq.dll, usada para conectar no PostgreSQL
+    "terminal.integrated.env.windows": {
+        "PATH": "C:\\ghcup\\bin;C:\\ghcup\\msys64\\mingw64\\bin;${env:PATH}",
+        "CABAL_DIR": "C:\\cabal"
+    }
+}

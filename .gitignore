@@ -1,0 +1,9 @@
+# Build do Cabal
+dist-newstyle/
+
+# Segredos (token do TMDB, senha do banco)
+.env
+
+# Editor (mas a configuração do terminal do projeto vai para o Git)
+.vscode/*
+!.vscode/settings.json

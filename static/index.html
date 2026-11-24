@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HaskellMovies</title>
+    <link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+    <header class="topo">
+        <a class="marca" href="/">Haskell<span>Movies</span></a>
+        <div id="usuario-logado" class="usuario" hidden>
+            <span id="saudacao"></span>
+            <button id="botao-sair" class="botao-secundario">Sair</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Visitante: entrar ou criar conta -->
+        <section id="tela-entrada" class="cartao-entrada" hidden>
+            <div class="abas">
+                <button class="aba ativa" data-aba="form-login">Entrar</button>
+                <button class="aba" data-aba="form-cadastro">Criar conta</button>
+            </div>
+
+            <form id="form-login" class="formulario">
+                <label>Username ou e-mail
+                    <input name="usuario" autocomplete="username" required>
+                </label>
+                <label>Senha
+                    <input name="senha" type="password" autocomplete="current-password" required>
+                </label>
+                <button type="submit">Entrar</button>
+            </form>
+
+            <form id="form-cadastro" class="formulario" hidden>
+                <label>Nome
+                    <input name="nome" autocomplete="name" required>
+                </label>
+                <label>Username
+                    <input name="username" autocomplete="username" required>
+                </label>
+                <label>E-mail
+                    <input name="email" type="email" autocomplete="email" required>
+                </label>
+                <label>Senha
+                    <input name="senha" type="password" autocomplete="new-password" minlength="6" required>
+                </label>
+                <button type="submit">Criar conta</button>
+            </form>
+
+            <p id="mensagem-erro" class="erro" role="alert"></p>
+        </section>
+
+        <!-- Logado: aqui vai entrar o catálogo -->
+        <section id="tela-inicio" hidden>
+            <h1>Catálogo</h1>
+            <p class="discreto">Em breve: busca de filmes pelo TMDB.</p>
+        </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

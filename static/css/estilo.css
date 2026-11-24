@@ -1,0 +1,153 @@
+:root {
+    --fundo: #14181c;
+    --superficie: #1f252c;
+    --borda: #2e3640;
+    --texto: #e6e8ea;
+    --texto-discreto: #9aa4ae;
+    --destaque: #f5c518;
+    --erro: #ff6b6b;
+    --raio: 10px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* Elementos com o atributo hidden somem mesmo quando têm display: flex */
+[hidden] {
+    display: none !important;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--fundo);
+    color: var(--texto);
+    line-height: 1.5;
+}
+
+/* ===== Topo ===== */
+
+.topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    border-bottom: 1px solid var(--borda);
+}
+
+.marca {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--texto);
+    text-decoration: none;
+}
+
+.marca span {
+    color: var(--destaque);
+}
+
+.usuario {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 16px;
+}
+
+.discreto {
+    color: var(--texto-discreto);
+}
+
+/* ===== Entrada (login / cadastro) ===== */
+
+.cartao-entrada {
+    max-width: 400px;
+    margin: 32px auto;
+    padding: 24px;
+    background: var(--superficie);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+}
+
+.abas {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.aba {
+    flex: 1;
+    background: transparent;
+    color: var(--texto-discreto);
+    border: 1px solid var(--borda);
+}
+
+.aba.ativa {
+    background: var(--destaque);
+    color: #000;
+    border-color: var(--destaque);
+}
+
+.formulario {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.formulario label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: var(--texto-discreto);
+}
+
+input {
+    padding: 10px 12px;
+    font: inherit;
+    color: var(--texto);
+    background: var(--fundo);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+}
+
+input:focus {
+    outline: 2px solid var(--destaque);
+    outline-offset: -1px;
+}
+
+/* ===== Botões ===== */
+
+button {
+    padding: 10px 16px;
+    font: inherit;
+    font-weight: 600;
+    color: #000;
+    background: var(--destaque);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.botao-secundario {
+    color: var(--texto);
+    background: transparent;
+    border: 1px solid var(--borda);
+}
+
+.erro {
+    min-height: 1.5em;
+    margin: 16px 0 0;
+    color: var(--erro);
+}
