@@ -15,4 +15,4 @@ main = do
     config   <- carregarConfig
     conexoes <- criarConexoes (urlBanco config)
     putStrLn ("HaskellMovies rodando em http://localhost:" ++ show (porta config))
-    run (porta config) (serve api (servidor conexoes))
+    run (porta config) (serve api (servidor conexoes (tokenTmdb config)))

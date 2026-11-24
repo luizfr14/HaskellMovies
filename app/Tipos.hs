@@ -4,7 +4,7 @@ module Tipos where
 
 import Data.Aeson
 import Data.Char (isLower, toLower)
-import Database.PostgreSQL.Simple.FromRow (FromRow)
+import Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
 import GHC.Generics (Generic)
 
 -- No JSON, os campos aparecem sem o prefixo do tipo:
@@ -31,12 +31,15 @@ data Usuario = Usuario
 
 instance FromRow Usuario
 
+
 -- O que o navegador pode ver de um usuário
 data UsuarioPublico = UsuarioPublico
     { publicoId       :: Int
     , publicoNome     :: String
     , publicoUsername :: String
     } deriving (Show, Eq, Generic)
+
+instance FromRow UsuarioPublico
 
 instance ToJSON UsuarioPublico where
     toJSON = genericToJSON opcoesJson
@@ -70,4 +73,95 @@ instance FromJSON Login where
 newtype Erro = Erro { erroMensagem :: String } deriving (Show, Generic)
 
 instance ToJSON Erro where
+    toJSON = genericToJSON opcoesJson
+
+-- ===== Filmes =====
+
+-- Filme como guardamos no banco e mostramos nas listas
+-- (poster é o caminho da imagem no TMDB, ex: "/abc123.jpg")
+data Filme = Filme
+    { filmeTmdbId :: Int
+    , filmeTitulo :: String
+    , filmePoster :: Maybe String
+    , filmeAno    :: Maybe Int
+    } deriving (Show, Generic)
+
+instance FromRow Filme
+
+instance ToJSON Filme where
+    toJSON = genericToJSON opcoesJson
+
+-- O que alguém que eu sigo achou de um filme
+data Opiniao = Opiniao
+    { opiniaoTmdbId       :: Int
+    , opiniaoUsername     :: String
+    , opiniaoNota         :: Maybe Int     -- Nothing = ainda não avaliou
+    , opiniaoComentario   :: Maybe String
+    , opiniaoQuerAssistir :: Bool
+    } deriving (Show, Generic)
+
+instance FromRow Opiniao
+
+instance ToJSON Opiniao where
+    toJSON = genericToJSON opcoesJson
+
+-- Um filme no resultado da busca, com as opiniões de quem eu sigo
+data FilmeNaBusca = FilmeNaBusca
+    { buscaFilme  :: Filme
+    , buscaAmigos :: [Opiniao]
+    } deriving (Show, Generic)
+
+instance ToJSON FilmeNaBusca where
+    toJSON = genericToJSON opcoesJson
+
+-- Página do filme: dados do TMDB + o que eu e meus amigos fizemos com ele
+data DetalheFilme = DetalheFilme
+    { detalheFilme         :: Filme
+    , detalheSinopse       :: String
+    , detalheMinhaNota     :: Maybe Int
+    , detalheMeuComentario :: Maybe String
+    , detalheQueroAssistir :: Bool
+    , detalheDestaque      :: Bool
+    , detalheAmigos        :: [Opiniao]
+    } deriving (Show, Generic)
+
+instance ToJSON DetalheFilme where
+    toJSON = genericToJSON opcoesJson
+
+-- Corpo do PUT /api/filmes/:id/avaliacao
+data NovaAvaliacao = NovaAvaliacao
+    { novaNota       :: Int
+    , novaComentario :: Maybe String
+    } deriving (Show, Generic)
+
+instance FromJSON NovaAvaliacao where
+    parseJSON = genericParseJSON opcoesJson
+
+-- Filme avaliado, como aparece no perfil
+data FilmeAvaliado = FilmeAvaliado
+    { avaliadoFilme      :: Filme
+    , avaliadoNota       :: Int
+    , avaliadoComentario :: Maybe String
+    } deriving (Show, Generic)
+
+instance FromRow FilmeAvaliado where
+    fromRow = FilmeAvaliado <$> fromRow <*> field <*> field
+
+instance ToJSON FilmeAvaliado where
+    toJSON = genericToJSON opcoesJson
+
+-- ===== Perfil =====
+
+data Perfil = Perfil
+    { perfilUsuario       :: UsuarioPublico
+    , perfilSeguidores    :: Int
+    , perfilSeguindo      :: Int
+    , perfilEuSigo        :: Bool
+    , perfilEhVoce        :: Bool
+    , perfilDestaques     :: [Filme]
+    , perfilQueroAssistir :: [Filme]
+    , perfilAvaliacoes    :: [FilmeAvaliado]
+    } deriving (Show, Generic)
+
+instance ToJSON Perfil where
     toJSON = genericToJSON opcoesJson

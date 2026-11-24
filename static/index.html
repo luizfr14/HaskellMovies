@@ -4,62 +4,79 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>HaskellMovies</title>
-    <link rel="stylesheet" href="/css/estilo.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&display=swap">
+    <link rel="stylesheet" href="/css/estilo.css?v=3">
 </head>
 <body>
-    <header class="topo">
-        <a class="marca" href="/">Haskell<span>Movies</span></a>
-        <div id="usuario-logado" class="usuario" hidden>
-            <span id="saudacao"></span>
-            <button id="botao-sair" class="botao-secundario">Sair</button>
-        </div>
-    </header>
 
-    <main>
-        <!-- Visitante: entrar ou criar conta -->
-        <section id="tela-entrada" class="cartao-entrada" hidden>
-            <div class="abas">
-                <button class="aba ativa" data-aba="form-login">Entrar</button>
-                <button class="aba" data-aba="form-cadastro">Criar conta</button>
-            </div>
+    <!-- ===== Visitante: entrar ou criar conta ===== -->
+    <section id="tela-entrada" class="entrada" hidden>
+        <div class="entrada-caixa">
+            <h1 class="logo">HaskellMovies</h1>
+            <p class="entrada-slogan">Veja o que seus amigos estão assistindo.</p>
 
             <form id="form-login" class="formulario">
-                <label>Username ou e-mail
-                    <input name="usuario" autocomplete="username" required>
-                </label>
-                <label>Senha
-                    <input name="senha" type="password" autocomplete="current-password" required>
-                </label>
-                <button type="submit">Entrar</button>
+                <input name="usuario" placeholder="Username ou e-mail" autocomplete="username" required>
+                <input name="senha" type="password" placeholder="Senha" autocomplete="current-password" required>
+                <button type="submit" class="botao">Entrar</button>
             </form>
 
             <form id="form-cadastro" class="formulario" hidden>
-                <label>Nome
-                    <input name="nome" autocomplete="name" required>
-                </label>
-                <label>Username
-                    <input name="username" autocomplete="username" required>
-                </label>
-                <label>E-mail
-                    <input name="email" type="email" autocomplete="email" required>
-                </label>
-                <label>Senha
-                    <input name="senha" type="password" autocomplete="new-password" minlength="6" required>
-                </label>
-                <button type="submit">Criar conta</button>
+                <input name="nome" placeholder="Nome completo" autocomplete="name" required>
+                <input name="username" placeholder="Username" autocomplete="username" required>
+                <input name="email" type="email" placeholder="E-mail" autocomplete="email" required>
+                <input name="senha" type="password" placeholder="Senha (mínimo 6 caracteres)" autocomplete="new-password" minlength="6" required>
+                <button type="submit" class="botao">Cadastrar-se</button>
             </form>
 
             <p id="mensagem-erro" class="erro" role="alert"></p>
-        </section>
+        </div>
 
-        <!-- Logado: aqui vai entrar o catálogo -->
-        <section id="tela-inicio" hidden>
-            <h1>Catálogo</h1>
-            <p class="discreto">Em breve: busca de filmes pelo TMDB.</p>
-        </section>
-    </main>
+        <div class="entrada-caixa entrada-troca">
+            <span id="troca-texto">Não tem uma conta?</span>
+            <button id="troca-botao" class="link">Cadastre-se</button>
+        </div>
+    </section>
 
-    <script src="/js/api.js"></script>
-    <script src="/js/app.js"></script>
+    <!-- ===== Logado ===== -->
+    <div id="tela-app" class="app" hidden>
+        <nav class="menu">
+            <a class="logo menu-logo" href="#/">HaskellMovies</a>
+            <a class="menu-item" href="#/" data-rota="catalogo">
+                <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>
+                <span>Início</span>
+            </a>
+            <a class="menu-item" href="#/pessoas" data-rota="pessoas">
+                <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+                <span>Pessoas</span>
+            </a>
+            <a class="menu-item" id="menu-perfil" href="#/" data-rota="perfil">
+                <span id="menu-avatar" class="avatar avatar-mini"></span>
+                <span>Perfil</span>
+            </a>
+            <button class="menu-item menu-sair" id="botao-sair">
+                <svg viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>
+                <span>Sair</span>
+            </button>
+            <p class="creditos">
+                Dados e imagens:
+                <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>.
+                Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
+            </p>
+        </nav>
+
+        <main id="conteudo" class="conteudo"></main>
+    </div>
+
+    <!-- ===== Página do filme (janela por cima) ===== -->
+    <div id="modal" class="modal" hidden>
+        <button class="modal-fechar" id="modal-fechar" aria-label="Fechar">✕</button>
+        <div class="modal-caixa" id="modal-caixa"></div>
+    </div>
+
+    <script src="/js/api.js?v=3"></script>
+    <script src="/js/app.js?v=3"></script>
 </body>
 </html>

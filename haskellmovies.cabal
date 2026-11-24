@@ -16,13 +16,18 @@ executable haskellmovies
     other-modules:    Api
                     , Banco
                     , Config
+                    , Dados.Filmes
+                    , Dados.Social
                     , Dados.Usuarios
                     , Erro
                     , Handlers
                     , Handlers.Conta
+                    , Handlers.Filmes
+                    , Handlers.Perfil
                     , Regras
                     , Sessao
                     , Tipos
+                    , Tmdb
                     , Util
     build-depends:    base >=4 && <5
                     , aeson
@@ -30,6 +35,7 @@ executable haskellmovies
                     , bytestring
                     , directory
                     , entropy
+                    , http-conduit
                     , postgresql-simple
                     , resource-pool >=0.4
                     , servant

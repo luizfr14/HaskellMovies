@@ -1,9 +1,10 @@
 -- Regras do sistema em funções puras (sem banco, sem web).
 -- Dá para testar tudo direto no ghci.
-module Regras (validarCadastro, normalizarLogin) where
+module Regras (validarCadastro, normalizarLogin, validarAvaliacao, proximaPosicao) where
 
 import Data.Char (isAsciiLower, isDigit, toLower)
 import Tipos
+import Data.Maybe (listToMaybe)
 import Util (aparar)
 
 -- Confere o cadastro e devolve os dados já limpos (sem espaços, username e e-mail minúsculos)
@@ -36,3 +37,19 @@ emailValido email =
     case break (== '@') email of
         (antes, '@' : depois) -> not (null antes) && '.' `elem` depois && '@' `notElem` depois
         _                     -> False
+
+-- Nota de 1 a 5; comentário opcional (vazio vira Nothing) com até 500 caracteres
+validarAvaliacao :: NovaAvaliacao -> Either String NovaAvaliacao
+validarAvaliacao a
+    | novaNota a < 1 || novaNota a > 5 = Left "A nota deve ser de 1 a 5 estrelas."
+    | maybe 0 length comentario > 500  = Left "O comentário deve ter no máximo 500 caracteres."
+    | otherwise                        = Right a { novaComentario = comentario }
+  where
+    comentario = case fmap aparar (novaComentario a) of
+        Just "" -> Nothing
+        outro   -> outro
+
+-- Primeira posição de destaque livre (1 a 3), ou Nothing se já tem 3
+-- proximaPosicao [1, 3] == Just 2      proximaPosicao [1, 2, 3] == Nothing
+proximaPosicao :: [Int] -> Maybe Int
+proximaPosicao usadas = listToMaybe [ p | p <- [1 .. 3], p `notElem` usadas ]
