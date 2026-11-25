@@ -4,6 +4,7 @@ import Data.Maybe (fromMaybe)
 import System.Directory (doesFileExist)
 import System.Environment (lookupEnv, setEnv)
 import Text.Read (readMaybe)
+import Armazenamento (Armazenamento (..))
 import Util (aparar)
 
 -- Configurações do sistema, lidas das variáveis de ambiente
@@ -11,6 +12,7 @@ data Config = Config
     { urlBanco  :: String  -- DATABASE_URL
     , tokenTmdb :: String  -- TMDB_TOKEN
     , porta     :: Int     -- PORT (padrão 8080)
+    , armazenamento :: Maybe Armazenamento  -- SUPABASE_URL + SUPABASE_SERVICE_KEY (opcional)
     }
 
 carregarConfig :: IO Config
@@ -19,11 +21,21 @@ carregarConfig = do
     banco     <- obrigatoria "DATABASE_URL"
     tmdb      <- obrigatoria "TMDB_TOKEN"
     portaTxt  <- lookupEnv "PORT"
+    urlStorage   <- lookupEnv "SUPABASE_URL"
+    chaveStorage <- lookupEnv "SUPABASE_SERVICE_KEY"
     pure Config
         { urlBanco  = banco
         , tokenTmdb = tmdb
         , porta     = fromMaybe 8080 (portaTxt >>= readMaybe)
+        -- Sem as duas variáveis o sistema funciona, só não troca foto de perfil
+        , armazenamento = Armazenamento <$> (preenchida urlStorage) <*> (preenchida chaveStorage)
         }
+
+-- Variável opcional: só vale se existir e não estiver vazia
+preenchida :: Maybe String -> Maybe String
+preenchida valor = case fmap aparar valor of
+    Just v | not (null v) -> Just (reverse (dropWhile (== '/') (reverse v)))  -- tira "/" do fim
+    _                     -> Nothing
 
 -- Busca uma variável; se não existir, para o programa com uma mensagem clara
 obrigatoria :: String -> IO String

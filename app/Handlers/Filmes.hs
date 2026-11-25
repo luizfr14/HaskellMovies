@@ -52,6 +52,8 @@ detalhe conexoes token cookie idFilme = do
         , detalheQueroAssistir = quero
         , detalheDestaque      = destaque
         , detalheAmigos        = amigos
+        , detalheTrailer       = tmdbTrailer filme
+        , detalheOnde          = tmdbOnde filme
         }
 
 -- PUT /api/filmes/:id/avaliacao

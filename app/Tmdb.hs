@@ -11,20 +11,24 @@ module Tmdb
 
 import Control.Exception (try)
 import Data.Aeson
+import Data.Aeson.Types (Parser)
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString.Lazy as LBS
+import Data.Maybe (listToMaybe)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Simple
 import Text.Read (readMaybe)
-import Tipos (Filme (..))
+import Tipos (Filme (..), OndeAssistir (..), Provedor (..))
 
 type TokenTmdb = String
 
--- Um filme como o TMDB devolve: os dados básicos + a sinopse
+-- Um filme como o TMDB devolve: os dados básicos, a sinopse e o trailer
 data FilmeTmdb = FilmeTmdb
     { tmdbFilme   :: Filme
     , tmdbSinopse :: String
+    , tmdbTrailer :: Maybe String  -- código do vídeo no YouTube (só vem no detalhe)
+    , tmdbOnde    :: OndeAssistir  -- onde assistir no Brasil (só vem no detalhe)
     }
 
 -- Lê só os campos que usamos do JSON do TMDB
@@ -35,8 +39,56 @@ instance FromJSON FilmeTmdb where
         poster     <- o .:? "poster_path"
         lancamento <- o .:? "release_date"
         sinopse    <- o .:? "overview"
+        videos     <- o .:? "videos"
+        onde       <- o .:? "watch/providers"
         pure (FilmeTmdb (Filme idFilme titulo poster (lancamento >>= anoDe))
-                        (maybe "" id sinopse)))
+                        (maybe "" id sinopse)
+                        (videos >>= escolherTrailer)
+                        (maybe semProvedores (\(OndeTmdb x) -> x) onde)))
+
+semProvedores :: OndeAssistir
+semProvedores = OndeAssistir [] [] [] []
+
+-- Um serviço: { "provider_name": "HBO Max", "logo_path": "/abc.jpg", ... }
+newtype ProvedorTmdb = ProvedorTmdb Provedor
+
+instance FromJSON ProvedorTmdb where
+    parseJSON = withObject "Provedor" (\o ->
+        ProvedorTmdb <$> (Provedor <$> o .: "provider_name" <*> o .:? "logo_path"))
+
+-- { "results": { "BR": { "flatrate": [...], "rent": [...], "buy": [...], "free": [...], "ads": [...] } } }
+-- Pegamos só o Brasil. Se o filme não tem dados lá, todas as listas ficam vazias.
+newtype OndeTmdb = OndeTmdb OndeAssistir
+
+instance FromJSON OndeTmdb where
+    parseJSON = withObject "Provedores" (\o -> do
+        paises <- o .:? "results" .!= mempty
+        brasil <- paises .:? "BR" .!= mempty
+        let lista :: Key -> Parser [Provedor]
+            lista tipo = map (\(ProvedorTmdb p) -> p) <$> (brasil .:? tipo .!= [])
+        streaming <- lista "flatrate"
+        alugar    <- lista "rent"
+        comprar   <- lista "buy"
+        gratis    <- lista "free"
+        comAnuncio <- lista "ads"
+        pure (OndeTmdb (OndeAssistir streaming alugar comprar (gratis ++ comAnuncio))))
+
+-- Um vídeo do filme: { "key": "YoHD9XEInc0", "site": "YouTube", "type": "Trailer" }
+data Video = Video String String String
+
+instance FromJSON Video where
+    parseJSON = withObject "Video" (\o -> Video <$> o .: "key" <*> o .: "site" <*> o .: "type")
+
+-- Os vídeos vêm dentro de { "results": [...] }
+newtype Videos = Videos [Video]
+
+instance FromJSON Videos where
+    parseJSON = withObject "Videos" (\o -> Videos <$> o .: "results")
+
+-- O primeiro trailer do YouTube da lista
+escolherTrailer :: Videos -> Maybe String
+escolherTrailer (Videos lista) =
+    listToMaybe [ chave | Video chave site tipo <- lista, site == "YouTube", tipo == "Trailer" ]
 
 -- As listas do TMDB vêm dentro de { "results": [...] }
 newtype Pagina = Pagina [FilmeTmdb]
@@ -57,7 +109,10 @@ buscarFilmes token texto =
          (consultar token "/search/movie" [("query", texto), ("include_adult", "false")])
 
 detalheDoFilme :: TokenTmdb -> Int -> IO (Maybe FilmeTmdb)
-detalheDoFilme token idFilme = consultar token ("/movie/" ++ show idFilme) []
+detalheDoFilme token idFilme =
+    -- append_to_response traz os vídeos (trailer) e os serviços de streaming na mesma chamada
+    consultar token ("/movie/" ++ show idFilme)
+        [("append_to_response", "videos,watch/providers"), ("include_video_language", "pt,en")]
 
 resultados :: Pagina -> [FilmeTmdb]
 resultados (Pagina filmes) = filmes

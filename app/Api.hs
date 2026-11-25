@@ -3,6 +3,7 @@
 
 module Api (API, api, ComCookie, Cookie) where
 
+import Data.ByteString (ByteString)
 import Servant
 import Tipos
 
@@ -27,6 +28,7 @@ type API =
     :<|> "api" :> "login"    :> ReqBody '[JSON] Login    :> Post '[JSON] (ComCookie UsuarioPublico)
     :<|> "api" :> "logout"   :> Cookie :> Post '[JSON] (ComCookie NoContent)
     :<|> "api" :> "eu"       :> Cookie :> Get  '[JSON] UsuarioPublico
+    :<|> "api" :> "eu" :> "foto" :> Cookie :> ReqBody '[OctetStream] ByteString :> Put '[JSON] UsuarioPublico
 
     -- Filmes
     :<|> "api" :> "filmes" :> Cookie :> QueryParam "q" String :> Get '[JSON] [FilmeNaBusca]

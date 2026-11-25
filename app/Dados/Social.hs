@@ -19,7 +19,7 @@ import Tipos
 buscarUsuarios :: Conexoes -> String -> IO [UsuarioPublico]
 buscarUsuarios conexoes texto =
     comConexao conexoes (\conn -> query conn
-        "select id, nome, username from usuarios \
+        "select id, nome, username, foto from usuarios \
         \where username ilike ? or nome ilike ? \
         \order by username limit 20"
         (padrao, padrao))
@@ -29,7 +29,7 @@ buscarUsuarios conexoes texto =
 usuarioPorUsername :: Conexoes -> String -> IO (Maybe UsuarioPublico)
 usuarioPorUsername conexoes username = do
     linhas <- comConexao conexoes (\conn -> query conn
-        "select id, nome, username from usuarios where username = ?" (Only username))
+        "select id, nome, username, foto from usuarios where username = ?" (Only username))
     pure (listToMaybe linhas)
 
 -- (seguidores, seguindo, eu sigo essa pessoa?)

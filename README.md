@@ -87,6 +87,12 @@ Abra o `.env` e preencha, sem aspas e sem espaços em volta do `=`:
 | `DATABASE_URL` | Supabase → projeto **haskellmovies** → botão **Connect** → **Session pooler**. Copie a URI e troque `[YOUR-PASSWORD]` pela senha do banco, sem os colchetes. Membros do grupo: peçam a senha no grupo. |
 | `TMDB_TOKEN` | Crie uma conta em themoviedb.org → Configurações → API → solicite uma chave (tipo **Education**) → copie o **API Read Access Token**, o token longo que começa com `eyJ`. |
 | `PORT` | Opcional; o padrão é 8080. |
+| `SUPABASE_URL` | Opcional (troca de foto de perfil). Supabase → **Project Settings → API** → **Project URL**. |
+| `SUPABASE_SERVICE_KEY` | Opcional (troca de foto de perfil). Supabase → **Project Settings → API Keys** → chave **secret** (`service_role`). **É secreta: só no `.env`, nunca no GitHub nem no front.** |
+
+Sem as duas variáveis do Supabase o sistema funciona normalmente; só não deixa trocar a foto de perfil.
+
+**Bucket da foto de perfil (uma vez só):** no Supabase, vá em **Storage → New bucket**, use o nome `avatares` e marque **Public bucket**. O banco do grupo já tem essa configuração.
 
 O `.env` está no `.gitignore` e nunca vai para o GitHub. **Nunca compartilhe a senha ou o token em lugares públicos.**
 
@@ -124,6 +130,7 @@ Para parar o servidor: `Ctrl+C` no terminal.
 | POST | `/api/login` | Entra com username ou e-mail |
 | POST | `/api/logout` | Sai |
 | GET | `/api/eu` | Usuário logado |
+| PUT | `/api/eu/foto` | Troca a foto de perfil (corpo = imagem JPG, PNG ou WebP de até 2 MB; guarda no Supabase Storage) |
 | GET | `/api/filmes?q=texto` | Busca no TMDB; sem `q`, mostra os populares |
 | GET | `/api/filmes/:id` | Página do filme |
 | PUT / DELETE | `/api/filmes/:id/avaliacao` | Avalia ou apaga a avaliação (`{ "nota": 5, "comentario": "..." }`) |
@@ -150,6 +157,7 @@ app/
   Dados/Filmes.hs      SQL de filmes, avaliações, "quero assistir" e destaques
   Dados/Social.hs      SQL de busca de pessoas, perfil e seguidores
   Tmdb.hs              chamadas à API do TMDB e leitura do JSON
+  Armazenamento.hs     envia a foto de perfil para o Supabase Storage
   Regras.hs            regras em funções puras (validações, posição do destaque)
   Sessao.hs            hash de senha, token e cookie da sessão
   Tipos.hs             tipos de dados (convertidos para JSON pelo Aeson)

@@ -8,6 +8,7 @@ import Banco (Conexoes)
 import Dados.Filmes (avaliacoesDe, destaquesDe, queroAssistirDe)
 import Dados.Social
 import Erro (falhar)
+import Regras (compatibilidade, conquistas, emComum, estatisticas)
 import Sessao (exigirUsuario)
 import Tipos
 import Util (aparar)
@@ -30,16 +31,27 @@ perfil conexoes cookie username = do
     destaques  <- liftIO (destaquesDe conexoes uid)
     quero      <- liftIO (queroAssistirDe conexoes uid)
     avaliacoes <- liftIO (avaliacoesDe conexoes uid)
+    let ehVoce = usuarioId eu == uid
+        resumo = estatisticas avaliacoes
+    -- Para comparar, também buscamos as minhas listas (no meu perfil não precisa)
+    minhasAvaliacoes <- if ehVoce then pure [] else liftIO (avaliacoesDe conexoes (usuarioId eu))
+    meuQuero         <- if ehVoce then pure [] else liftIO (queroAssistirDe conexoes (usuarioId eu))
     pure Perfil
-        { perfilUsuario       = dono
-        , perfilSeguidores    = seguidores
-        , perfilSeguindo      = seguindo
-        , perfilEuSigo        = euSigo
-        , perfilEhVoce        = usuarioId eu == uid
-        , perfilDestaques     = destaques
-        , perfilQueroAssistir = quero
-        , perfilAvaliacoes    = avaliacoes
+        { perfilUsuario         = dono
+        , perfilSeguidores      = seguidores
+        , perfilSeguindo        = seguindo
+        , perfilEuSigo          = euSigo
+        , perfilEhVoce          = ehVoce
+        , perfilDestaques       = destaques
+        , perfilQueroAssistir   = quero
+        , perfilAvaliacoes      = avaliacoes
+        , perfilCompatibilidade = compatibilidade (map notaDoFilme minhasAvaliacoes) (map notaDoFilme avaliacoes)
+        , perfilEmComum         = emComum meuQuero quero
+        , perfilEstatisticas    = resumo
+        , perfilConquistas      = conquistas resumo seguidores (length destaques)
         }
+  where
+    notaDoFilme a = (filmeTmdbId (avaliadoFilme a), avaliadoNota a)
 
 -- PUT /api/usuarios/:username/seguir
 seguirUsuario :: Conexoes -> Maybe String -> String -> Handler NoContent

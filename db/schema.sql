@@ -8,6 +8,7 @@ create table if not exists usuarios (
     username    text not null unique,
     email       text not null unique,
     senha_hash  text not null,              -- senha com hash bcrypt, nunca em texto
+    foto        text,                       -- endereço da foto de perfil (Supabase Storage)
     criado_em   timestamptz not null default now()
 );
 
@@ -80,3 +81,6 @@ alter table avaliacoes     enable row level security;
 alter table quero_assistir enable row level security;
 alter table destaques      enable row level security;
 alter table seguidores     enable row level security;
+
+-- Para bancos criados antes da foto de perfil (pode rodar de novo sem problema)
+alter table usuarios add column if not exists foto text;

@@ -7,6 +7,7 @@ module Dados.Usuarios
     , criarSessao
     , buscarUsuarioDaSessao
     , apagarSessao
+    , salvarFoto
     ) where
 
 import Control.Exception (throwIO, try)
@@ -23,7 +24,7 @@ inserirUsuario conexoes c hash = do
         query conn
             "insert into usuarios (nome, username, email, senha_hash) \
             \values (?, ?, ?, ?) \
-            \returning id, nome, username, email, senha_hash"
+            \returning id, nome, username, email, senha_hash, foto"
             (cadastroNome c, cadastroUsername c, cadastroEmail c, hash)))
         :: IO (Either SqlError [Usuario])
     case resultado of
@@ -38,7 +39,7 @@ buscarPorLogin :: Conexoes -> String -> IO (Maybe Usuario)
 buscarPorLogin conexoes login = do
     linhas <- comConexao conexoes (\conn ->
         query conn
-            "select id, nome, username, email, senha_hash \
+            "select id, nome, username, email, senha_hash, foto \
             \from usuarios where username = ? or email = ?"
             (login, login))
     pure (listToMaybe linhas)
@@ -53,11 +54,17 @@ buscarUsuarioDaSessao :: Conexoes -> String -> IO (Maybe Usuario)
 buscarUsuarioDaSessao conexoes token = do
     linhas <- comConexao conexoes (\conn ->
         query conn
-            "select u.id, u.nome, u.username, u.email, u.senha_hash \
+            "select u.id, u.nome, u.username, u.email, u.senha_hash, u.foto \
             \from sessoes s join usuarios u on u.id = s.usuario_id \
             \where s.token = ? and s.criado_em > now() - interval '30 days'"
             (Only token))
     pure (listToMaybe linhas)
+
+-- Guarda o endereço da foto de perfil
+salvarFoto :: Conexoes -> Int -> String -> IO ()
+salvarFoto conexoes uid url =
+    comConexao conexoes (\conn ->
+        void (execute conn "update usuarios set foto = ? where id = ?" (url, uid)))
 
 apagarSessao :: Conexoes -> String -> IO ()
 apagarSessao conexoes token =

@@ -4,6 +4,7 @@ module Handlers (servidor) where
 
 import Servant
 import Api (API)
+import Armazenamento (Armazenamento)
 import Banco (Conexoes)
 import Handlers.Conta
 import Handlers.Filmes
@@ -11,13 +12,14 @@ import Handlers.Perfil
 import Tmdb (TokenTmdb)
 
 -- Liga cada rota da API ao seu handler, na mesma ordem do tipo API
-servidor :: Conexoes -> TokenTmdb -> Server API
-servidor conexoes token =
+servidor :: Conexoes -> TokenTmdb -> Maybe Armazenamento -> Server API
+servidor conexoes token armazenamento =
     -- Conta
          cadastrar conexoes
     :<|> entrar conexoes
     :<|> sair conexoes
     :<|> eu conexoes
+    :<|> trocarFoto conexoes armazenamento
 
     -- Filmes
     :<|> catalogo conexoes token

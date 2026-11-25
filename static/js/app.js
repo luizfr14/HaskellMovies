@@ -23,8 +23,22 @@ function poster(filme, classe = "poster") {
         : `<div class="${classe} poster-vazio">${esc(filme.titulo)}</div>`;
 }
 
-function avatar(nome, classe = "avatar") {
-    return `<span class="${classe}">${esc((nome || "?")[0])}</span>`;
+// Foto do usuário; sem foto, mostra a inicial do nome sobre o gradiente
+function avatar(usuario, classe = "avatar") {
+    return usuario.foto
+        ? `<img class="${classe}" src="${esc(usuario.foto)}" alt="" loading="lazy">`
+        : `<span class="${classe}">${esc((usuario.nome || "?")[0])}</span>`;
+}
+
+// Recorta o centro da imagem num quadrado de 400x400 e converte para JPEG (arquivo leve)
+async function quadrado(arquivo) {
+    const imagem = await createImageBitmap(arquivo);
+    const lado = Math.min(imagem.width, imagem.height);
+    const tela = document.createElement("canvas");
+    tela.width = tela.height = 400;
+    tela.getContext("2d").drawImage(
+        imagem, (imagem.width - lado) / 2, (imagem.height - lado) / 2, lado, lado, 0, 0, 400, 400);
+    return new Promise((pronto) => tela.toBlob(pronto, "image/jpeg", 0.9));
 }
 
 function estrelas(nota) {
@@ -95,9 +109,14 @@ function entrarNoApp(usuario) {
     eu = usuario;
     document.getElementById("tela-entrada").hidden = true;
     document.getElementById("tela-app").hidden = false;
-    document.getElementById("menu-avatar").textContent = usuario.nome[0];
     document.getElementById("menu-perfil").href = `#/u/${usuario.username}`;
+    atualizarMenu();
     rotear();
+}
+
+// Mostra a foto (ou a inicial) do usuário logado no menu
+function atualizarMenu() {
+    document.getElementById("menu-avatar").innerHTML = avatar(eu, "avatar avatar-mini");
 }
 
 // ===== Rotas (sem recarregar a página) =====
@@ -105,7 +124,8 @@ function entrarNoApp(usuario) {
 //   #/pessoas     buscar pessoas
 //   #/u/fulano    perfil
 
-function rotear() {
+// animar = false recarrega a tela sem repetir a animação de entrada
+function rotear(animar = true) {
     if (!eu) return;
     const partes = location.hash.replace(/^#\/?/, "").split("/");
     let rota = "catalogo";
@@ -114,7 +134,7 @@ function rotear() {
         telaPessoas();
     } else if (partes[0] === "u" && partes[1]) {
         rota = partes[1] === eu.username ? "perfil" : "";
-        telaPerfil(decodeURIComponent(partes[1]));
+        telaPerfil(decodeURIComponent(partes[1]), animar);
     } else {
         telaCatalogo();
     }
@@ -123,7 +143,14 @@ function rotear() {
     window.scrollTo(0, 0);
 }
 
-window.addEventListener("hashchange", rotear);
+window.addEventListener("hashchange", () => rotear());
+
+// Reinicia a animação de entrada de um elemento (a classe "entrando" está no CSS)
+function reiniciarAnimacao(elemento) {
+    elemento.classList.remove("entrando");
+    void elemento.offsetWidth;  // faz o navegador "esquecer" a animação anterior
+    elemento.classList.add("entrando");
+}
 
 // Espera o usuário parar de digitar antes de buscar
 function aoDigitar(campo, acao) {
@@ -143,6 +170,7 @@ function telaCatalogo() {
         </div>
         <h2 class="titulo-secao" id="titulo-catalogo">Populares agora</h2>
         <div id="resultado-filmes"></div>`;
+    reiniciarAnimacao(conteudo);
     const campo = document.getElementById("busca-filmes");
     aoDigitar(campo, carregarFilmes);
     carregarFilmes("");
@@ -188,6 +216,7 @@ function telaPessoas() {
             <input id="busca-pessoas" type="search" placeholder="Pesquisar pessoas" autocomplete="off">
         </div>
         <div id="resultado-pessoas" class="lista-pessoas">${aviso("Procure amigos pelo nome ou username.")}</div>`;
+    reiniciarAnimacao(conteudo);
     const campo = document.getElementById("busca-pessoas");
     aoDigitar(campo, carregarPessoas);
     campo.focus();
@@ -204,7 +233,7 @@ async function carregarPessoas(texto) {
     destino.innerHTML = lista.length
         ? lista.map((p) => `
             <a class="pessoa" href="#/u/${encodeURIComponent(p.username)}">
-                ${avatar(p.nome)}
+                ${avatar(p)}
                 <span class="pessoa-texto">
                     <strong>${esc(p.username)}</strong>
                     <span>${esc(p.nome)}</span>
@@ -215,9 +244,19 @@ async function carregarPessoas(texto) {
 
 // ===== Perfil =====
 
-let abaPerfil = "avaliacoes";
+let abaPerfil = "destaques";
+let filtroNota = 0;         // 0 = mostra todas as notas
+let ordem = "recentes";     // como a aba Avaliados está ordenada
 
-async function telaPerfil(username) {
+// Cada ordem é uma função de comparação. "recentes" mantém a ordem que veio do servidor.
+const ordenadores = {
+    recentes: () => 0,
+    melhor: (a, b) => b.nota - a.nota,
+    pior: (a, b) => a.nota - b.nota,
+    titulo: (a, b) => a.filme.titulo.localeCompare(b.filme.titulo, "pt-BR"),
+};
+
+async function telaPerfil(username, animar = true) {
     const resposta = await api("GET", "/api/usuarios/" + encodeURIComponent(username));
     if (!resposta.ok) {
         conteudo.innerHTML = aviso(resposta.dados?.mensagem ?? "Perfil não encontrado.");
@@ -232,24 +271,29 @@ async function telaPerfil(username) {
             ? `<button class="botao-cinza" id="botao-seguir" data-seguindo="1">Seguindo</button>`
             : `<button class="botao" id="botao-seguir">Seguir</button>`;
 
-    const vagas = [0, 1, 2].map((i) => p.destaques[i]);
-    const destaques = vagas.map((f) => f
-        ? `<button class="destaque" data-filme="${f.tmdbId}">
-               <span class="destaque-anel">${urlPoster(f.poster, "w185")
-                   ? `<img src="${urlPoster(f.poster, "w185")}" alt="">`
-                   : `<span class="destaque-vazio">🎬</span>`}</span>
-               <span>${esc(f.titulo)}</span>
-           </button>`
-        : `<div class="destaque"><span class="destaque-vazio">+</span><span class="discreto">Destaque</span></div>`
-    ).join("");
+    // Cada destaque ganha a nota e o comentário que o dono do perfil escreveu
+    const destaques = p.destaques.map((filme) => ({
+        filme,
+        avaliacao: p.avaliacoes.find((a) => a.filme.tmdbId === filme.tmdbId),
+    }));
+
+    // No meu perfil, clicar na foto abre a escolha de um arquivo
+    const foto = p.ehVoce
+        ? `<label class="avatar-trocar" title="Trocar foto">
+               ${avatar(u)}
+               <span class="avatar-camera">Trocar foto</span>
+               <input type="file" id="arquivo-foto" accept="image/jpeg,image/png,image/webp" hidden>
+           </label>`
+        : avatar(u);
 
     conteudo.innerHTML = `
         <header class="perfil-topo">
-            ${avatar(u.nome)}
+            ${foto}
             <div class="perfil-info">
                 <div class="perfil-linha">
                     <h1 class="perfil-username">${esc(u.username)}</h1>
                     ${botao}
+                    <button class="botao-cinza" id="botao-link">Copiar link</button>
                 </div>
                 <div class="perfil-numeros">
                     <span><b>${p.avaliacoes.length}</b> ${p.avaliacoes.length === 1 ? "avaliação" : "avaliações"}</span>
@@ -257,32 +301,204 @@ async function telaPerfil(username) {
                     <span><b>${p.seguindo}</b> seguindo</span>
                 </div>
                 <span class="perfil-nome">${esc(u.nome)}</span>
+                ${p.ehVoce ? `<span class="erro-foto" id="erro-foto" role="alert"></span>` : ""}
+                ${p.compatibilidade !== null && !p.ehVoce
+                    ? `<span class="compat">${p.compatibilidade}% compatível com você</span>`
+                    : ""}
+                ${p.conquistas.length
+                    ? `<div class="conquistas">${p.conquistas.map((c) => `<span class="selo">${esc(c)}</span>`).join("")}</div>`
+                    : ""}
             </div>
         </header>
-        <section class="destaques">${destaques}</section>
         <nav class="abas">
-            <button class="aba" data-aba="avaliacoes">Avaliados</button>
-            <button class="aba" data-aba="quero">Quero assistir</button>
+            <button class="aba" data-aba="destaques">Destaques</button>
+            <button class="aba" data-aba="avaliacoes">Avaliados <span class="contador">${p.avaliacoes.length}</span></button>
+            <button class="aba" data-aba="quero">Quero assistir <span class="contador">${p.queroAssistir.length}</span></button>
+            <button class="aba" data-aba="estatisticas">Estatísticas</button>
         </nav>
-        <section id="grade-perfil"></section>`;
+        <section id="grade-perfil"></section>
+        ${p.emComum.length ? `
+        <section class="em-comum">
+            <div class="em-comum-topo">
+                <h2 class="titulo-secao">Vocês dois querem ver</h2>
+                <button class="botao" id="botao-sortear">Sortear um para hoje</button>
+            </div>
+            <div class="em-comum-lista">
+                ${p.emComum.map((f) => `
+                    <button class="cartao-filme" data-filme="${f.tmdbId}">
+                        ${poster(f)}
+                        <span class="cartao-titulo">${esc(f.titulo)}</span>
+                    </button>`).join("")}
+            </div>
+        </section>` : ""}`;
+
+    if (animar) reiniciarAnimacao(conteudo);
 
     const mostrarAba = (aba) => {
         abaPerfil = aba;
         conteudo.querySelectorAll(".aba").forEach((b) => b.classList.toggle("ativa", b.dataset.aba === aba));
-        const itens = aba === "avaliacoes"
-            ? p.avaliacoes.map((a) => ({ filme: a.filme, marca: `<span class="nota-estrelas">${estrelas(a.nota)}</span>` }))
-            : p.queroAssistir.map((f) => ({ filme: f, marca: `<span class="discreto">${f.ano ?? ""}</span>` }));
-        document.getElementById("grade-perfil").innerHTML = itens.length
-            ? `<div class="grade-perfil">${itens.map(({ filme, marca }) => `
-                <button class="cartao-filme" data-filme="${filme.tmdbId}">
-                    ${poster(filme)}
-                    <span class="cartao-titulo">${esc(filme.titulo)}</span>
-                    ${marca}
+        const grade = document.getElementById("grade-perfil");
+
+        // Destaques: até 3 filmes lado a lado, com pôster grande, nota e comentário
+        if (aba === "destaques") {
+            grade.innerHTML = destaques.length
+                ? `<div class="grade-destaques">${destaques.map(({ filme, avaliacao }) => `
+                    <button class="destaque-card" data-filme="${filme.tmdbId}">
+                        ${poster(filme, "poster destaque-poster")}
+                        <span class="cartao-titulo">${esc(filme.titulo)}</span>
+                        ${avaliacao
+                            ? `<span class="nota-estrelas">${estrelas(avaliacao.nota)}</span>
+                               ${avaliacao.comentario ? `<span class="destaque-texto">${esc(avaliacao.comentario)}</span>` : ""}`
+                            : `<span class="discreto">Ainda sem avaliação</span>`}
+                    </button>`).join("")}</div>`
+                : aviso(p.ehVoce
+                    ? "Nenhum destaque ainda. Abra um filme e toque em Destacar."
+                    : "Nenhum destaque ainda.");
+            return;
+        }
+
+        if (aba === "avaliacoes") { desenharAvaliados(grade); return; }
+        if (aba === "estatisticas") { desenharEstatisticas(grade); return; }
+
+        // Quero assistir
+        grade.innerHTML = p.queroAssistir.length
+            ? `<div class="grade-perfil">${p.queroAssistir.map((f) => `
+                <button class="cartao-filme" data-filme="${f.tmdbId}">
+                    ${poster(f)}
+                    <span class="cartao-titulo">${esc(f.titulo)}</span>
+                    <span class="discreto">${f.ano ?? ""}</span>
                 </button>`).join("")}</div>`
-            : aviso(aba === "avaliacoes" ? "Nenhum filme avaliado ainda." : "Nenhum filme na lista.");
+            : aviso(p.ehVoce
+                ? "Sua lista está vazia. Abra um filme e toque em Quero assistir."
+                : "Nenhum filme na lista.");
+    };
+
+    // Avaliados: filtro por nota e ordenação. Cada cartão mostra um trecho do comentário.
+    const desenharAvaliados = (grade) => {
+        const lista = p.avaliacoes
+            .filter((a) => filtroNota === 0 || a.nota === filtroNota)
+            .sort(ordenadores[ordem]);
+        grade.innerHTML = `
+            <div class="barra-filtros">
+                <div class="filtros">
+                    ${[0, 5, 4, 3, 2, 1].map((n) => `
+                        <button class="filtro ${n === filtroNota ? "ativo" : ""}" data-nota="${n}">
+                            ${n === 0 ? "Todas" : n + "★"}
+                        </button>`).join("")}
+                </div>
+                <select id="ordem-avaliados" aria-label="Ordenar avaliações">
+                    <option value="recentes">Mais recentes</option>
+                    <option value="melhor">Melhor nota</option>
+                    <option value="pior">Pior nota</option>
+                    <option value="titulo">Título (A–Z)</option>
+                </select>
+            </div>
+            ${lista.length ? `<div class="grade-perfil">${lista.map((a) => `
+                <button class="cartao-filme" data-filme="${a.filme.tmdbId}">
+                    ${poster(a.filme)}
+                    <span class="cartao-titulo">${esc(a.filme.titulo)}</span>
+                    <span class="nota-estrelas">${estrelas(a.nota)}</span>
+                    ${a.comentario ? `<span class="cartao-comentario">${esc(a.comentario)}</span>` : ""}
+                </button>`).join("")}</div>`
+                : aviso(p.avaliacoes.length ? "Nenhum filme com essa nota." : "Nenhum filme avaliado ainda.")}`;
+        grade.querySelector("#ordem-avaliados").value = ordem;
+        grade.querySelectorAll(".filtro").forEach((b) => b.addEventListener("click", () => {
+            filtroNota = Number(b.dataset.nota);
+            desenharAvaliados(grade);
+        }));
+        grade.querySelector("#ordem-avaliados").addEventListener("change", (e) => {
+            ordem = e.target.value;
+            desenharAvaliados(grade);
+        });
+    };
+
+    // Estatísticas: números e um gráfico de barras com quantos filmes receberam cada nota
+    const desenharEstatisticas = (grade) => {
+        const e = p.estatisticas;
+        if (e.total === 0) {
+            grade.innerHTML = aviso(p.ehVoce
+                ? "Avalie alguns filmes para ver suas estatísticas."
+                : "Ainda não há estatísticas.");
+            return;
+        }
+        const maior = Math.max(...e.distribuicao, 1);
+        const numero = (valor, legenda) =>
+            `<div class="estat-card"><b>${valor}</b><span class="discreto">${legenda}</span></div>`;
+        grade.innerHTML = `
+            <div class="estat-numeros">
+                ${numero(e.media.toFixed(1).replace(".", ","), "nota média")}
+                ${numero(e.total, "filmes avaliados")}
+                ${numero(e.comentarios, "comentários escritos")}
+                ${e.decada ? numero(e.decada + "s", "década favorita") : ""}
+            </div>
+            <div class="estat-barras">
+                <h3 class="titulo-secao">Como avalia</h3>
+                ${[5, 4, 3, 2, 1].map((n) => `
+                    <div class="barra-linha">
+                        <span class="barra-rotulo">${n}★</span>
+                        <div class="barra"><div class="barra-preenchida" style="width:${(e.distribuicao[n - 1] / maior) * 100}%"></div></div>
+                        <span class="barra-valor">${e.distribuicao[n - 1]}</span>
+                    </div>`).join("")}
+            </div>`;
     };
     conteudo.querySelectorAll(".aba").forEach((b) => b.addEventListener("click", () => mostrarAba(b.dataset.aba)));
     mostrarAba(abaPerfil);
+
+    // Copiar link do perfil
+    document.getElementById("botao-link")?.addEventListener("click", async (e) => {
+        const botaoLink = e.target;
+        try {
+            await navigator.clipboard.writeText(location.href);
+            botaoLink.textContent = "Link copiado!";
+        } catch {
+            botaoLink.textContent = "Copie da barra de endereço";
+        }
+        setTimeout(() => { botaoLink.textContent = "Copiar link"; }, 2000);
+    });
+
+    // Troca de foto: reduz a imagem aqui e o servidor Haskell guarda no Supabase Storage
+    document.getElementById("arquivo-foto")?.addEventListener("change", async (e) => {
+        const arquivo = e.target.files[0];
+        e.target.value = "";  // permite escolher o mesmo arquivo de novo
+        if (!arquivo) return;
+        const erro = document.getElementById("erro-foto");
+        const legenda = conteudo.querySelector(".avatar-camera");
+        erro.textContent = "";
+        legenda.textContent = "Enviando...";
+        try {
+            const resposta = await enviarArquivo("PUT", "/api/eu/foto", await quadrado(arquivo));
+            if (resposta.ok) {
+                eu = resposta.dados;
+                atualizarMenu();
+                telaPerfil(username, false);
+                return;
+            }
+            erro.textContent = resposta.dados?.mensagem ?? "Não foi possível trocar a foto.";
+        } catch {
+            erro.textContent = "Não foi possível ler essa imagem.";
+        }
+        legenda.textContent = "Trocar foto";
+    });
+
+    // Sorteio: acende um filme de cada vez, desacelerando, e abre o escolhido
+    document.getElementById("botao-sortear")?.addEventListener("click", (e) => {
+        const cartoes = [...conteudo.querySelectorAll(".em-comum-lista .cartao-filme")];
+        const escolhido = Math.floor(Math.random() * cartoes.length);
+        const passos = cartoes.length * 3 + escolhido;
+        e.target.disabled = true;
+        let i = 0;
+        const girar = () => {
+            cartoes.forEach((c, n) => c.classList.toggle("sorteando", n === i % cartoes.length));
+            if (i === passos) {
+                setTimeout(() => abrirFilme(Number(cartoes[escolhido].dataset.filme)), 600);
+                e.target.disabled = false;
+                return;
+            }
+            i++;
+            setTimeout(girar, 60 + i * 12);
+        };
+        girar();
+    });
 
     const seguir = document.getElementById("botao-seguir");
     if (seguir) {
@@ -290,7 +506,7 @@ async function telaPerfil(username) {
             seguir.disabled = true;
             const metodo = seguir.dataset.seguindo ? "DELETE" : "PUT";
             await api(metodo, `/api/usuarios/${encodeURIComponent(u.username)}/seguir`);
-            telaPerfil(username);
+            telaPerfil(username, false);
         });
     }
 }
@@ -299,11 +515,16 @@ async function telaPerfil(username) {
 
 let filmeAberto = null;
 
+let timerFechar;  // controla o fim da animação de saída da janela
+
 async function abrirFilme(id) {
+    clearTimeout(timerFechar);          // se estava fechando, cancela
+    modal.classList.remove("saindo");
     filmeAberto = id;
+    // Só mostra "Carregando..." na primeira abertura; ao atualizar, mantém o conteúdo até chegar o novo
+    if (modal.hidden) modalCaixa.innerHTML = aviso("Carregando...");
     modal.hidden = false;
     document.body.style.overflow = "hidden";
-    modalCaixa.innerHTML = aviso("Carregando...");
     const resposta = await api("GET", "/api/filmes/" + id);
     if (filmeAberto !== id) return;  // o usuário já abriu outro
     if (!resposta.ok) {
@@ -314,11 +535,17 @@ async function abrirFilme(id) {
 }
 
 function fecharFilme() {
-    modal.hidden = true;
+    if (modal.hidden || modal.classList.contains("saindo")) return;
     filmeAberto = null;
     document.body.style.overflow = "";
-    // No perfil, recarrega para mostrar a avaliação ou o destaque novo
-    if (location.hash.startsWith("#/u/")) rotear();
+    // Toca a animação de saída e só então esconde a janela
+    modal.classList.add("saindo");
+    timerFechar = setTimeout(() => {
+        modal.hidden = true;
+        modal.classList.remove("saindo");
+    }, 180);
+    // No perfil, recarrega (sem animar) para mostrar a avaliação ou o destaque novo
+    if (location.hash.startsWith("#/u/")) rotear(false);
 }
 
 document.getElementById("modal-fechar").addEventListener("click", fecharFilme);
@@ -330,9 +557,30 @@ function desenharFilme(d) {
     const url = urlPoster(f.poster, "w780");
     let nota = d.minhaNota ?? 0;
 
+    // Onde assistir no Brasil: só os grupos que têm algum serviço
+    const grupos = [
+        ["Streaming", d.onde.streaming],
+        ["Alugar", d.onde.alugar],
+        ["Comprar", d.onde.comprar],
+        ["Grátis", d.onde.gratis],
+    ].filter(([, servicos]) => servicos.length > 0);
+
+    const onde = grupos.length
+        ? grupos.map(([nome, servicos]) => `
+            <div class="onde-grupo">
+                <span class="onde-rotulo">${nome}</span>
+                <div class="onde-lista">${servicos.map((s) => `
+                    <span class="onde-item">
+                        ${s.logo ? `<img src="https://image.tmdb.org/t/p/w92${s.logo}" alt="" loading="lazy">` : ""}
+                        <span>${esc(s.nome)}</span>
+                    </span>`).join("")}
+                </div>
+            </div>`).join("")
+        : `<p class="discreto">Não encontramos este filme em nenhum serviço no Brasil.</p>`;
+
     const amigos = d.amigos.map((o) => `
         <div class="comentario">
-            ${avatar(o.username)}
+            ${avatar({ nome: o.username })}
             <p><strong><a href="#/u/${encodeURIComponent(o.username)}">${esc(o.username)}</a></strong>${o.querAssistir
                 ? `<span class="discreto">quer assistir</span>`
                 : `<span style="color:var(--estrela)">${estrelas(o.nota)}</span> ${esc(o.comentario ?? "")}`}</p>
@@ -347,6 +595,10 @@ function desenharFilme(d) {
             </header>
             <div class="post-corpo">
                 <p class="post-sinopse">${esc(d.sinopse || "Sem sinopse disponível.")}</p>
+                <section class="onde">
+                    <h3 class="onde-titulo">Onde assistir</h3>
+                    ${onde}
+                </section>
                 ${amigos || `<p class="discreto">Ninguém que você segue avaliou este filme ainda.</p>`}
             </div>
             <footer class="post-acoes">
@@ -359,6 +611,11 @@ function desenharFilme(d) {
                         <svg viewBox="0 0 24 24"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg>
                         ${d.destaque ? "Em destaque" : "Destacar"}
                     </button>
+                    ${d.trailer ? `
+                    <button class="icone" id="acao-trailer" title="Ver trailer">
+                        <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
+                        Trailer
+                    </button>` : ""}
                 </div>
                 <form class="form-avaliacao" id="form-avaliacao">
                     <div class="estrelas" id="estrelas">
@@ -395,6 +652,12 @@ function desenharFilme(d) {
         agir(d.queroAssistir ? "DELETE" : "PUT", "/quero-assistir"));
     document.getElementById("acao-destaque").addEventListener("click", () =>
         agir(d.destaque ? "DELETE" : "PUT", "/destaque"));
+    // Trailer: troca o pôster pelo vídeo do YouTube
+    document.getElementById("acao-trailer")?.addEventListener("click", () => {
+        modalCaixa.querySelector(".modal-poster").outerHTML = `
+            <iframe class="modal-poster modal-video" allow="autoplay; encrypted-media; fullscreen" allowfullscreen
+                src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(d.trailer)}?autoplay=1"></iframe>`;
+    });
     document.getElementById("acao-apagar")?.addEventListener("click", () =>
         agir("DELETE", "/avaliacao"));
     document.getElementById("form-avaliacao").addEventListener("submit", (e) => {

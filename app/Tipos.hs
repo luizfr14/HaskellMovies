@@ -27,6 +27,7 @@ data Usuario = Usuario
     , usuarioUsername  :: String
     , usuarioEmail     :: String
     , usuarioSenhaHash :: String
+    , usuarioFoto      :: Maybe String  -- endereço da foto no Supabase Storage
     } deriving (Show, Generic)
 
 instance FromRow Usuario
@@ -37,6 +38,7 @@ data UsuarioPublico = UsuarioPublico
     { publicoId       :: Int
     , publicoNome     :: String
     , publicoUsername :: String
+    , publicoFoto     :: Maybe String
     } deriving (Show, Eq, Generic)
 
 instance FromRow UsuarioPublico
@@ -45,7 +47,7 @@ instance ToJSON UsuarioPublico where
     toJSON = genericToJSON opcoesJson
 
 publico :: Usuario -> UsuarioPublico
-publico u = UsuarioPublico (usuarioId u) (usuarioNome u) (usuarioUsername u)
+publico u = UsuarioPublico (usuarioId u) (usuarioNome u) (usuarioUsername u) (usuarioFoto u)
 
 -- Dados enviados pelo formulário de cadastro
 data Cadastro = Cadastro
@@ -123,6 +125,8 @@ data DetalheFilme = DetalheFilme
     , detalheQueroAssistir :: Bool
     , detalheDestaque      :: Bool
     , detalheAmigos        :: [Opiniao]
+    , detalheTrailer       :: Maybe String  -- código do vídeo no YouTube
+    , detalheOnde          :: OndeAssistir
     } deriving (Show, Generic)
 
 instance ToJSON DetalheFilme where
@@ -161,7 +165,43 @@ data Perfil = Perfil
     , perfilDestaques     :: [Filme]
     , perfilQueroAssistir :: [Filme]
     , perfilAvaliacoes    :: [FilmeAvaliado]
+    , perfilCompatibilidade :: Maybe Int  -- 0 a 100; Nothing se não há filmes em comum
+    , perfilEmComum       :: [Filme]      -- filmes que os dois querem assistir
+    , perfilEstatisticas  :: Estatisticas
+    , perfilConquistas    :: [String]     -- selos ganhos (ex.: "Cinéfilo")
     } deriving (Show, Generic)
 
 instance ToJSON Perfil where
+    toJSON = genericToJSON opcoesJson
+
+-- Números do perfil, calculados a partir das avaliações
+data Estatisticas = Estatisticas
+    { estatisticasTotal        :: Int
+    , estatisticasMedia        :: Maybe Double  -- Nothing se ainda não avaliou nada
+    , estatisticasDistribuicao :: [Int]         -- quantos filmes receberam 1, 2, 3, 4 e 5 estrelas
+    , estatisticasDecada       :: Maybe Int     -- década com mais filmes avaliados (ex.: 2010)
+    , estatisticasComentarios  :: Int           -- avaliações em que escreveu um comentário
+    } deriving (Show, Generic)
+
+instance ToJSON Estatisticas where
+    toJSON = genericToJSON opcoesJson
+
+-- Um serviço onde o filme está disponível (logo = caminho da imagem no TMDB)
+data Provedor = Provedor
+    { provedorNome :: String
+    , provedorLogo :: Maybe String
+    } deriving (Show, Generic)
+
+instance ToJSON Provedor where
+    toJSON = genericToJSON opcoesJson
+
+-- Onde assistir no Brasil (dados do TMDB, fornecidos pela JustWatch)
+data OndeAssistir = OndeAssistir
+    { ondeStreaming :: [Provedor]  -- incluso na assinatura
+    , ondeAlugar    :: [Provedor]
+    , ondeComprar   :: [Provedor]
+    , ondeGratis    :: [Provedor]  -- grátis, com ou sem anúncios
+    } deriving (Show, Generic)
+
+instance ToJSON OndeAssistir where
     toJSON = genericToJSON opcoesJson

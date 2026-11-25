@@ -1,13 +1,15 @@
 -- Cadastro, login, logout e "quem sou eu"
-module Handlers.Conta (cadastrar, entrar, sair, eu) where
+module Handlers.Conta (cadastrar, entrar, sair, eu, trocarFoto) where
 
 import Control.Monad.IO.Class (liftIO)
+import qualified Data.ByteString as BS
 import Servant
 import Api (ComCookie)
+import Armazenamento (Armazenamento, enviarFoto)
 import Banco (Conexoes)
 import Dados.Usuarios
 import Erro (falhar)
-import Regras (normalizarLogin, validarCadastro)
+import Regras (normalizarLogin, validarCadastro, validarFoto)
 import Sessao
 import Tipos
 
@@ -43,6 +45,23 @@ sair conexoes cookie = do
 -- GET /api/eu
 eu :: Conexoes -> Maybe String -> Handler UsuarioPublico
 eu conexoes cookie = fmap publico (exigirUsuario conexoes cookie)
+
+-- PUT /api/eu/foto   (o corpo da requisição é a própria imagem)
+trocarFoto :: Conexoes -> Maybe Armazenamento -> Maybe String -> BS.ByteString -> Handler UsuarioPublico
+trocarFoto conexoes talvezArmazenamento cookie bytes = do
+    usuario <- exigirUsuario conexoes cookie
+    tipo    <- either (falhar err400) pure (validarFoto bytes)
+    armazenamento <- maybe (falhar err503 "A troca de foto não está configurada neste servidor.")
+                           pure talvezArmazenamento
+    resultado <- liftIO (enviarFoto armazenamento (usuarioId usuario) tipo bytes)
+    case resultado of
+        Nothing  -> falhar err502 "Não foi possível salvar a foto. Tente de novo."
+        Just url -> do
+            -- O ?v=... muda a cada troca, assim o navegador não mostra a foto antiga
+            versao <- liftIO (fmap (take 10) gerarToken)
+            let endereco = url ++ "?v=" ++ versao
+            liftIO (salvarFoto conexoes (usuarioId usuario) endereco)
+            pure (publico usuario { usuarioFoto = Just endereco })
 
 -- Cria a sessão no banco e manda o cookie para o navegador
 iniciarSessao :: Conexoes -> Usuario -> Handler (ComCookie UsuarioPublico)
